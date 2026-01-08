@@ -1,4 +1,6 @@
+cat << 'EOF' > app.py
 import os
+import time
 from flask import Flask, render_template, request, jsonify
 from google import genai
 from google.genai import types
@@ -9,7 +11,7 @@ app = Flask(__name__)
 API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 if not API_KEY:
-    print("CRITICAL ERROR: GOOGLE_API_KEY not found in environment.")
+    print("CRITICAL ERROR: GOOGLE_API_KEY not found.")
 
 client = None
 if API_KEY:
@@ -35,15 +37,28 @@ def generate():
         return jsonify({"success": False, "error": "Server API Key is missing."})
 
     user_prompt = request.json.get('prompt')
-    try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash', 
-            config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
-            contents=user_prompt
-        )
-        return jsonify({"success": True, "code": response.text})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+    
+    # RETRY LOGIC: Try 3 times if Google is busy
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model='gemini-2.5-flash', 
+                config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
+                contents=user_prompt
+            )
+            return jsonify({"success": True, "code": response.text})
+        except Exception as e:
+            error_msg = str(e)
+            # If it's a 503 (Busy) error and we have retries left...
+            if "503" in error_msg and attempt < max_retries - 1:
+                time.sleep(2) # Wait 2 seconds
+                continue      # Try again
+            
+            # If it's the last attempt or a different error, fail.
+            if attempt == max_retries - 1:
+                return jsonify({"success": False, "error": f"Google is busy: {error_msg}"})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+EOF
