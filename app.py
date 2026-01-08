@@ -1,20 +1,25 @@
+cat << 'EOF' > app.py
 import os
 from flask import Flask, render_template, request, jsonify
-# Using the NEW google-genai library for Python 3.12+
 from google import genai
 from google.genai import types
 
-# --- PASTE API KEY BELOW ---
-import os
-# ... (keep your other imports)
+# --- CONFIGURATION ---
+app = Flask(__name__)
 
-# SECURE WAY: Get key from the environment
+# SECURE: Get key from Environment Variable (Render or Local)
 API_KEY = os.environ.get("GOOGLE_API_KEY")
 
+# Safety Check: Stop immediately if key is missing
 if not API_KEY:
-    raise ValueError("No API_KEY found! Set the GOOGLE_API_KEY environment variable.")
+    # If running locally, you might see this error if you didn't export the key.
+    # On Render, this means you need to add the Environment Variable.
+    print("CRITICAL ERROR: GOOGLE_API_KEY not found in environment.")
 
-client = genai.Client(api_key=API_KEY)
+# Initialize Gemini Client (Only if key exists to prevent crash on import)
+client = None
+if API_KEY:
+    client = genai.Client(api_key=API_KEY)
 
 # Gameboy System Prompt
 SYSTEM_PROMPT = """
@@ -33,10 +38,14 @@ def home():
 
 @app.route('/generate', methods=['POST'])
 def generate():
+    if not client:
+        return jsonify({"success": False, "error": "Server API Key is missing."})
+
     user_prompt = request.json.get('prompt')
     try:
+        # Using Gemini 1.5 Flash (Free Tier Friendly)
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-1.5-flash', 
             config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
             contents=user_prompt
         )
@@ -46,3 +55,4 @@ def generate():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+EOF
