@@ -1,4 +1,3 @@
-cat << 'EOF' > app.py
 import os
 import time
 from flask import Flask, render_template, request, jsonify
@@ -50,15 +49,11 @@ def generate():
             return jsonify({"success": True, "code": response.text})
         except Exception as e:
             error_msg = str(e)
-            # If it's a 503 (Busy) error and we have retries left...
             if "503" in error_msg and attempt < max_retries - 1:
-                time.sleep(2) # Wait 2 seconds
-                continue      # Try again
-            
-            # If it's the last attempt or a different error, fail.
+                time.sleep(2)
+                continue
             if attempt == max_retries - 1:
                 return jsonify({"success": False, "error": f"Google is busy: {error_msg}"})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
-EOF
