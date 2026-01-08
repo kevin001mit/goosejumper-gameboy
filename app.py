@@ -5,10 +5,16 @@ from google import genai
 from google.genai import types
 
 # --- PASTE API KEY BELOW ---
-API_KEY = "AIzaSyCkBfqEcLKoARYX3rmNZbuAoA8Ilnsq-Cw"
+import os
+# ... (keep your other imports)
+
+# SECURE WAY: Get key from the environment
+API_KEY = os.environ.get("GOOGLE_API_KEY")
+
+if not API_KEY:
+    raise ValueError("No API_KEY found! Set the GOOGLE_API_KEY environment variable.")
 
 client = genai.Client(api_key=API_KEY)
-app = Flask(__name__)
 
 # Gameboy System Prompt
 SYSTEM_PROMPT = """
